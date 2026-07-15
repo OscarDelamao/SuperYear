@@ -319,13 +319,48 @@ input,textarea,select,button{font-family:inherit;color:var(--bone)}
 .foot .motto{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
 .foot .motto b{color:#D07A66}
 .foot .fine{font-family:var(--mono);font-size:8px;letter-spacing:.08em;color:var(--ash);text-align:right;line-height:1.6}
+
+/* ---------- auth gate ---------- */
+.authgate{position:fixed;inset:0;background:var(--obsidian);display:flex;align-items:center;justify-content:center;padding:20px;z-index:200}
+.authbox{width:100%;max-width:360px;background:var(--charcoal);border:1px solid var(--line2);border-radius:8px;padding:28px 24px}
+.authbox h1{font-family:var(--serif);font-size:30px;font-weight:700;margin:6px 0 14px;color:var(--bone)}
+.authbox h1 em{font-style:italic;color:var(--brass)}
+.authsub{font-size:12.5px;color:var(--ash);margin-bottom:18px;line-height:1.5}
+.authfield{margin-bottom:12px}
+.authfield label{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--camel);margin-bottom:5px}
+.authfield input{width:100%;background:rgba(17,17,17,.5);border:1px solid rgba(138,133,128,.3);border-radius:5px;padding:10px 11px;font-size:14px}
+.authbtns{display:flex;flex-direction:column;gap:10px;margin-top:16px;align-items:center}
+.authbtns .btn{width:100%;text-align:center}
+.authbtns .tog{margin-top:2px}
+.autherr{background:var(--oxide);color:var(--bone);padding:9px 11px;border-radius:5px;font-size:12.5px;margin-bottom:14px}
+.authnote{font-size:12px;color:var(--ash);margin-top:12px;line-height:1.5;text-align:center}
+
+/* ---------- time-stamp picker ---------- */
+.tspick{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 4px}
+.tspick select{background:rgba(17,17,17,.5);border:1px solid rgba(138,133,128,.3);border-radius:5px;padding:10px 10px;font-family:var(--mono);font-size:20px;color:var(--brass);text-align:center}
+.tscolon{font-family:var(--mono);font-size:20px;color:var(--ash)}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="authgate" id="authgate">
+  <div class="authbox">
+    <div class="eye">Operation Total Reconstitution</div>
+    <h1>Command <em>Journal</em></h1>
+    <div class="authsub" id="authsub">Sign in to unlock the log.</div>
+    <div class="autherr" id="autherr" style="display:none"></div>
+    <div class="authfield"><label>Email</label><input type="email" id="au-email" autocomplete="username"></div>
+    <div class="authfield"><label>Password</label><input type="password" id="au-pass" autocomplete="current-password"></div>
+    <div class="authbtns">
+      <span class="btn" id="au-submit">Sign In</span>
+      <span class="tog" id="au-toggle">Need an account?</span>
+    </div>
+    <div class="authnote" id="au-note" style="display:none"></div>
+  </div>
+</div>
+<div class="app" id="app-root" style="display:none">
   <div class="ctrl">
     <span>COMMAND JOURNAL // <span class="ox">EYES ONLY</span></span>
-    <span class="ctrlright"><span class="expbtn" id="syncbtn">Sync</span><span class="expbtn" id="exportbtn">Export</span><span class="saveflag saved" id="saveflag">SAVED</span></span>
+    <span class="ctrlright"><span class="expbtn" id="syncbtn">Sync</span><span class="expbtn" id="exportbtn">Export</span><span class="expbtn" id="signoutbtn">Sign Out</span><span class="saveflag saved" id="saveflag">SAVED</span></span>
   </div>
   <div class="mast">
     <div class="eye">Operation Total Reconstitution</div>
@@ -346,7 +381,7 @@ input,textarea,select,button{font-family:inherit;color:var(--bone)}
   <!-- ============ TODAY ============ -->
   <div id="view-today">
     <div class="card">
-      <div class="eyebrow">Morning Routine · tap to stamp, tap again to clear</div>
+      <div class="eyebrow">Morning Routine · tap to set a time</div>
       <div class="mstamps" id="mstamps" style="margin-top:10px"></div>
       <div class="mgaps" id="mgaps"></div>
     </div>
@@ -454,6 +489,22 @@ input,textarea,select,button{font-family:inherit;color:var(--bone)}
     <div class="modal-btns">
       <span class="btn" id="cfm-yes">Yes</span>
       <span class="btn ghost" id="cfm-no">Cancel</span>
+    </div>
+  </div>
+</div>
+
+<!-- time stamp picker -->
+<div class="modal" id="tsmodal">
+  <div class="modalbox">
+    <div class="modal-t" id="ts-title">Set time</div>
+    <div class="tspick"><select id="ts-hh"></select><span class="tscolon">:</span><select id="ts-mm"></select></div>
+    <div class="modal-btns" style="margin-top:16px">
+      <span class="btn ghost" id="ts-now">Set to now</span>
+      <div class="modalrow" style="margin-top:0">
+        <span class="btn" id="ts-save">Save</span>
+        <span class="btn ghost" id="ts-clear">Clear</span>
+        <span class="btn ghost" id="ts-cancel">Cancel</span>
+      </div>
     </div>
   </div>
 </div>
@@ -762,7 +813,7 @@ function renderMorning(){
     var key=s[0],val=m[key];
     var row=document.createElement("div");row.className="mstamp"+(val?" set":"");
     row.innerHTML='<div class="ml">'+s[1]+'<small>'+s[2]+'</small></div><div class="mt'+(val?"":" empty")+'">'+(val?val:"tap")+'</div>';
-    row.onclick=function(){var mm=entry(current).m;if(mm[key])delete mm[key];else mm[key]=nowHM();saveLog();renderMorning();};
+    row.onclick=function(){openTimeStamp(key,s[1]);};
     host.appendChild(row);
   });
   var g=document.getElementById("mgaps");var out=[];
@@ -770,6 +821,42 @@ function renderMorning(){
   if(m.wake&&m.op)out.push("wake to operational: <b>"+fmtGap(gapMin(m.wake,m.op))+"</b>");
   g.innerHTML=out.join("&nbsp;&nbsp;/&nbsp;&nbsp;");
 }
+
+/* ---------- time-stamp picker: hour + 5-min increments ---------- */
+var tsKey=null;
+function fillTimeSelect(sel,max,step){sel.innerHTML="";for(var i=0;i<max;i+=step){var o=document.createElement("option");o.value=two(i);o.textContent=two(i);sel.appendChild(o);}}
+function openTimeStamp(key,label){
+  tsKey=key;
+  document.getElementById("ts-title").textContent=label;
+  var hh=document.getElementById("ts-hh"),mm=document.getElementById("ts-mm");
+  if(!hh.options.length)fillTimeSelect(hh,24,1);
+  if(!mm.options.length)fillTimeSelect(mm,60,5);
+  var cur=entry(current).m[key];
+  var h,m5;
+  if(cur){
+    var p=cur.split(":");h=+p[0];m5=Math.round((+p[1])/5)*5;if(m5>=60){m5=0;h=(h+1)%24;}
+  }else{
+    var n=new Date();h=n.getHours();m5=Math.round(n.getMinutes()/5)*5;if(m5>=60){m5=0;h=(h+1)%24;}
+  }
+  hh.value=two(h);mm.value=two(m5);
+  document.getElementById("tsmodal").classList.add("on");
+}
+function closeTimeStamp(){document.getElementById("tsmodal").classList.remove("on");tsKey=null;}
+document.getElementById("ts-save").onclick=function(){
+  if(!tsKey)return;
+  var hh=document.getElementById("ts-hh").value,mm=document.getElementById("ts-mm").value;
+  entry(current).m[tsKey]=hh+":"+mm;saveLog();renderMorning();closeTimeStamp();
+};
+document.getElementById("ts-now").onclick=function(){
+  if(!tsKey)return;
+  entry(current).m[tsKey]=nowHM();saveLog();renderMorning();closeTimeStamp();
+};
+document.getElementById("ts-clear").onclick=function(){
+  if(!tsKey)return;
+  var mm=entry(current).m;if(mm[tsKey])delete mm[tsKey];saveLog();renderMorning();closeTimeStamp();
+};
+document.getElementById("ts-cancel").onclick=closeTimeStamp;
+document.getElementById("tsmodal").onclick=function(ev){if(ev.target===this)closeTimeStamp();};
 
 /* ---------- today ---------- */
 var rosterEditing=false;
@@ -1780,40 +1867,76 @@ document.getElementById("nb-add").onclick=function(){
   document.getElementById("nb-title").value="";document.getElementById("nb-author").value="";saveReading();renderReading();
 };
 
-/* ---------- cloud sync (JSONBin) ---------- */
-var JSONBIN_BIN_ID="6a506b89f5f4af5e297ab9c9";
-var JSONBIN_API_KEY="$2a$10$BwzkBhodKrJYqTeGtMu7mO3UzBV15aKYNsLe7tlCYbViPmjHsuQVq";
-var JSONBIN_URL="https://api.jsonbin.io/v3/b/"+JSONBIN_BIN_ID;
-var hydrating=false,cloudTimer=null;
+/* ============================================================
+   =====================  SUPABASE AUTH + SYNC  ================
+   Raw REST (GoTrue + PostgREST). No SDK, no CDN — stays one file.
+   WHY THE ANON KEY IS SAFE TO COMMIT, UNLIKE THE OLD JSONBIN KEY:
+   The JsonBin key was a bearer token — anyone who read it owned the
+   bin outright, full read and write, and it sat in a public repo.
+   The Supabase anon key below is PUBLIC BY DESIGN. On its own it can
+   read nothing, because Row Level Security refuses every row that is
+   not yours. The key gets you to the door; your login opens it.
+   That guarantee is only real if RLS is actually on — run
+   SUPABASE_SETUP.sql in your Supabase project before trusting a
+   single byte to this.
+   ============================================================ */
+var SUPABASE={
+  url:"https://hmhguqzuxfgwcjthltla.supabase.co",
+  anonKey:"sb_publishable_wwPjmzftMPwYLLAXvDUh7g_6MlPTdMt"
+};
+var SB_CONFIGURED=!/^PASTE_/.test(SUPABASE.url)&&!/^PASTE_/.test(SUPABASE.anonKey);
+var AUTH_KEY="superyear_auth_v1";
+var auth=null,hydrating=false,cloudTimer=null,syncReady=false;
+
+function jwtSub(tok){try{var b64=tok.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");return JSON.parse(atob(b64));}catch(e){return{};}}
+function loadAuth(){auth=safeParse(rawGet(AUTH_KEY),null);return auth;}
+function saveAuth(a){auth=a;if(a)rawSet(AUTH_KEY,JSON.stringify(a));else rawDel(AUTH_KEY);}
+
+function sbFetch(path,opts,withAuth){
+  opts=opts||{};withAuth=withAuth!==false;
+  var headers={"Content-Type":"application/json","apikey":SUPABASE.anonKey};
+  if(opts.headers)for(var k in opts.headers)headers[k]=opts.headers[k];
+  headers["Authorization"]="Bearer "+((withAuth&&auth&&auth.access_token)?auth.access_token:SUPABASE.anonKey);
+  return fetch(SUPABASE.url+path,{method:opts.method||"GET",headers:headers,body:opts.body}).then(function(res){
+    if(res.status===204)return null;
+    return res.text().then(function(txt){
+      var json=null;try{json=txt?JSON.parse(txt):null;}catch(e){}
+      if(!res.ok){var err=new Error((json&&(json.msg||json.message))||("HTTP "+res.status));err.status=res.status;throw err;}
+      return json;
+    });
+  });
+}
+
+function signIn(email,password){
+  return sbFetch("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email:email,password:password})},false)
+    .then(function(d){
+      if(!d||!d.access_token)throw new Error("Sign in failed");
+      saveAuth({access_token:d.access_token,refresh_token:d.refresh_token,email:email,uid:jwtSub(d.access_token).sub});
+      return auth;
+    });
+}
+function signUp(email,password){
+  return sbFetch("/auth/v1/signup",{method:"POST",body:JSON.stringify({email:email,password:password})},false)
+    .then(function(d){
+      if(d&&d.access_token){saveAuth({access_token:d.access_token,refresh_token:d.refresh_token,email:email,uid:jwtSub(d.access_token).sub});return auth;}
+      return null; // email confirmation required by project settings
+    });
+}
+function signOut(){
+  saveAuth(null);syncReady=false;
+  document.getElementById("app-root").style.display="none";
+  document.getElementById("authgate").style.display="flex";
+  document.getElementById("au-pass").value="";
+  authMode="in";renderAuthMode();
+}
 
 function getAppStateBundle(){
   var sessions={};liftList("session:").forEach(function(k){var r=liftGet(k);if(r)sessions[k]=r;});
   return {
     data:data,reading:reading,masterlog:masterlog,game:game,roster:roster,
     lift:{templates:L.templates,sessions:sessions,activeSession:liftGet("activeSession")||""},
-    savedAt:new Date().toISOString()
+    updatedAt:Date.now()
   };
-}
-function scheduleCloudSave(){
-  if(hydrating)return;
-  if(cloudTimer)clearTimeout(cloudTimer);
-  cloudTimer=setTimeout(saveCloudNow,5000);
-}
-function cloudAvailable(){return typeof fetch==="function";}
-function saveCloudNow(){
-  if(!cloudAvailable())return Promise.resolve(false);
-  if(cloudTimer){clearTimeout(cloudTimer);cloudTimer=null;}
-  flag("saving","SYNCING");
-  return fetch(JSONBIN_URL,{
-    method:"PUT",
-    headers:{"Content-Type":"application/json","X-Access-Key":JSONBIN_API_KEY},
-    body:JSON.stringify(getAppStateBundle())
-  }).then(function(res){
-    if(!res.ok)throw new Error("save "+res.status);
-    flag("saved","CLOUD SAVED");
-  }).catch(function(e){
-    flag("err","SYNC FAILED");
-  });
 }
 function persistLocalAll(){
   if(!hasStore)return;
@@ -1825,59 +1948,70 @@ function persistLocalAll(){
     localStorage.setItem(ROSTER_KEY,JSON.stringify(roster));
   }catch(e){}
 }
-function loadCloudNow(){
-  if(!cloudAvailable())return Promise.resolve(false);
-  flag("saving","LOADING CLOUD");
-  return fetch(JSONBIN_URL+"/latest",{headers:{"X-Access-Key":JSONBIN_API_KEY}})
-  .then(function(res){
-    if(!res.ok)throw new Error("load "+res.status);
-    return res.json();
-  }).then(function(json){
-    var st=(json&&json.record)||{};
-    if(!st.savedAt){
-      // brand new / empty bin: seed it with local state rather than wiping local
-      flag("saved","SEEDING CLOUD");
-      return saveCloudNow().then(function(){return false;});
+function applyRemoteState(st){
+  hydrating=true;
+  data=st.data||{};
+  reading=st.reading||{removed:[],custom:[],status:{},noteLog:{}};
+  if(!reading.noteLog)reading.noteLog={};
+  if(!reading.removed)reading.removed=[];
+  if(!reading.custom)reading.custom=[];
+  if(!reading.status)reading.status={};
+  masterlog=st.masterlog||{entries:[],draft:""};
+  game=st.game||{prestige:{},resetDate:{},cashedXP:0,cashins:[]};
+  roster=(st.roster&&st.roster.length)?st.roster:clone(DEFAULT_ROSTER);
+  if(st.lift){
+    if(st.lift.templates&&st.lift.templates.order){
+      L.templates=st.lift.templates;
+      if(!L.templates.deleted)L.templates.deleted=[];
+      rawSet(LIFT_PFX+"templates",JSON.stringify(L.templates));
     }
-    hydrating=true;
-    data=st.data||{};
-    reading=st.reading||{removed:[],custom:[],status:{},noteLog:{}};
-    if(!reading.noteLog)reading.noteLog={};
-    if(!reading.removed)reading.removed=[];
-    if(!reading.custom)reading.custom=[];
-    if(!reading.status)reading.status={};
-    masterlog=st.masterlog||{entries:[],draft:""};
-    game=st.game||{prestige:{},resetDate:{},cashedXP:0,cashins:[]};
-    roster=(st.roster&&st.roster.length)?st.roster:clone(DEFAULT_ROSTER);
-    if(st.lift){
-      if(st.lift.templates&&st.lift.templates.order){
-        L.templates=st.lift.templates;
-        if(!L.templates.deleted)L.templates.deleted=[];
-        rawSet(LIFT_PFX+"templates",JSON.stringify(L.templates));
-      }
-      var ss=st.lift.sessions||{};
-      for(var k in ss){rawSet(LIFT_PFX+k,ss[k]);}
-      // never clobber a live local session; only adopt the cloud one if none is open here
-      if(!L.session&&st.lift.activeSession){
-        var as=safeParse(st.lift.activeSession,null);
-        if(as&&as.id){L.session=as;L.view="session";rawSet(LIFT_PFX+"activeSession",st.lift.activeSession);}
-      }
+    var ss=st.lift.sessions||{};
+    for(var k in ss){rawSet(LIFT_PFX+k,ss[k]);}
+    if(!L.session&&st.lift.activeSession){
+      var as=safeParse(st.lift.activeSession,null);
+      if(as&&as.id){L.session=as;L.view="session";rawSet(LIFT_PFX+"activeSession",st.lift.activeSession);}
     }
-    persistLocalAll();
-    if(cloudTimer){clearTimeout(cloudTimer);cloudTimer=null;}
-    hydrating=false;
-    setView(curView);
-    flag("saved","CLOUD LOADED");
-    return true;
-  }).catch(function(e){
-    hydrating=false;
-    flag("err","CLOUD OFFLINE");
-    return false;
+  }
+  persistLocalAll();
+  hydrating=false;
+}
+function pullRemote(){
+  if(!auth)return Promise.resolve(null);
+  return sbFetch("/rest/v1/superyear_state?select=state,updated_at&user_id=eq."+auth.uid,{method:"GET"})
+    .then(function(rows){
+      if(!rows||!rows.length)return null;
+      var st=rows[0].state||{};st.updatedAt=st.updatedAt||rows[0].updated_at||0;return st;
+    });
+}
+function pushRemote(){
+  if(!auth)return Promise.reject(new Error("Not signed in"));
+  var bundle=getAppStateBundle();
+  return sbFetch("/rest/v1/superyear_state",{
+    method:"POST",
+    headers:{"Prefer":"resolution=merge-duplicates,return=minimal"},
+    body:JSON.stringify({user_id:auth.uid,state:bundle,updated_at:new Date(bundle.updatedAt).toISOString()})
   });
 }
+function scheduleCloudSave(){
+  if(hydrating||!syncReady||!auth)return;
+  if(cloudTimer)clearTimeout(cloudTimer);
+  cloudTimer=setTimeout(saveCloudNow,5000);
+}
+function saveCloudNow(){
+  if(!auth)return Promise.resolve(false);
+  if(cloudTimer){clearTimeout(cloudTimer);cloudTimer=null;}
+  flag("saving","SYNCING");
+  return pushRemote().then(function(){flag("saved","CLOUD SAVED");return true;})
+    .catch(function(e){flag("err","SYNC FAILED");return false;});
+}
 document.getElementById("syncbtn").onclick=function(){saveCloudNow();};
+document.getElementById("signoutbtn").onclick=function(){
+  uiConfirm("Sign out?","Your data stays in the cloud under this account. Sign back in anytime to pick it up again.","Sign Out",function(){signOut();});
+};
 
-/* ---------- one-time fresh start: wipe old journal + session data, keep workout templates ---------- */
+/* ---------- one-time fresh start: wipe old journal + session data, keep workout templates ----------
+   Must run BEFORE any remote state is written to localStorage, or a first sign-in on a
+   fresh device would wipe the very data it just pulled down. */
 function freshStart(){
   if(!hasStore)return;
   if(localStorage.getItem("superyear_fresh_v3"))return;
@@ -1889,8 +2023,55 @@ function freshStart(){
   localStorage.setItem("superyear_fresh_v3","1");
 }
 
-fillSectDropdown();freshStart();loadAll();liftInit();setView("today");
-setTimeout(function(){loadCloudNow();},800);
+/* ---------- auth gate UI ---------- */
+var authMode="in";
+function authErr(msg){var e=document.getElementById("autherr");if(!msg){e.style.display="none";return;}e.textContent=msg;e.style.display="block";}
+function authNote(msg){var n=document.getElementById("au-note");if(!msg){n.style.display="none";return;}n.textContent=msg;n.style.display="block";}
+function renderAuthMode(){
+  document.getElementById("au-submit").textContent=authMode==="in"?"Sign In":"Create Account";
+  document.getElementById("au-toggle").textContent=authMode==="in"?"Need an account?":"Already have one?";
+  document.getElementById("authsub").textContent=SB_CONFIGURED?(authMode==="in"?"Sign in to unlock the log.":"Create an account. One email, one password."):"Not configured yet.";
+}
+document.getElementById("au-toggle").onclick=function(){authMode=authMode==="in"?"up":"in";authErr("");authNote("");renderAuthMode();};
+document.getElementById("au-pass").addEventListener("keydown",function(e){if(e.key==="Enter")doAuthSubmit();});
+
+function bootAfterAuth(remote){
+  if(remote){applyRemoteState(remote);}else{loadAll();}
+  liftInit();
+  setView("today");
+  syncReady=true;
+  document.getElementById("authgate").style.display="none";
+  document.getElementById("app-root").style.display="block";
+  if(!remote)saveCloudNow(); // this device/account has no cloud row yet — seed it
+}
+function doAuthSubmit(){
+  if(!SB_CONFIGURED)return;
+  var email=document.getElementById("au-email").value.trim();
+  var pass=document.getElementById("au-pass").value;
+  if(!email||!pass){authErr("Email and password required.");return;}
+  authErr("");authNote("");
+  document.getElementById("au-submit").textContent="Working…";
+  var p=authMode==="up"?signUp(email,pass):signIn(email,pass);
+  p.then(function(a){
+    if(!a){authNote("Check your email to confirm the account, then sign in.");authMode="in";renderAuthMode();return;}
+    return pullRemote().then(function(remote){bootAfterAuth(remote);});
+  }).catch(function(e){
+    authErr(e.message||"Something went wrong.");
+    document.getElementById("au-submit").textContent=authMode==="in"?"Sign In":"Create Account";
+  });
+}
+document.getElementById("au-submit").onclick=doAuthSubmit;
+
+/* ---------- boot ---------- */
+fillSectDropdown();freshStart();
+loadAuth();
+renderAuthMode();
+if(!SB_CONFIGURED)authErr("Open this file and paste your Supabase project URL and anon key into the SUPABASE object near the bottom of the script.");
+if(SB_CONFIGURED&&auth&&auth.access_token){
+  flag("saving","SIGNING IN");
+  pullRemote().then(function(remote){bootAfterAuth(remote);flag("saved","SAVED");})
+    .catch(function(e){saveAuth(null);});
+}
 })();
 </script>
 </body>
